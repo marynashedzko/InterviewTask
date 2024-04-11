@@ -1,132 +1,111 @@
-import requests
+"""
+This module provides classes and functions for 
+interacting with the EBI Ontology Lookup Service (OLS) API.
+
+The main class in this module is OntologyAPI, which allows 
+fetching ontology details in both human-readable and machine-readable formats.
+"""
+
 import sys
 from os import system
+import requests
 
-def check_api_access():
+class OntologyAPI:
     """
-    Check the accessibility of the default API endpoint.
+    A class for interacting with the EBI Ontology Lookup Service (OLS) API.
 
-    Returns:
-    - str: A message indicating whether the API is accessible or not.
+    This class provides methods to fetch ontology details, 
+    both in human-readable and machine-readable formats.
     """
+    def __init__(self):
+        """
+        Initializes the OntologyAPI object with the base URL and a session object.
+        """
+        self.base_url = "https://www.ebi.ac.uk/ols4"
+        self.session = requests.Session()  # Initialize a session object
 
-    # Define the default base URL and endpoint
-    base_url = "https://www.ebi.ac.uk/ols4"
-    endpoint = "/terms"
+    def fetch_ontology_details(self, ontology_id):
+        """
+        Fetches details for a specific ontology in JSON format.
 
-    # Construct the full URL
-    url = base_url + endpoint
+        Parameters:
+        - ontology_id (str): The ID of the ontology to fetch details for.
 
-    # Make a GET request to the API
-    response = requests.get(url)
+        Returns:
+        - dict or str: A dictionary containing ontology details if successful, 
+        or an error message if unsuccessful.
+        """
+        try:
+            # Fetch ontology details
+            endpoint = f"/api/ontologies/{ontology_id}"
+            url = self.base_url + endpoint
+            response = self.session.get(url, timeout=5)
 
-    # Check if the request was successful (status code 200)
-    if response.status_code == 200:
-        return "API is accessible!"
-    else:
-        return f"API is not accessible. Status code: {response.status_code}"
-    
-
-def fetch_ontology_details(ontology_id):
-    """
-    Fetch ontology details from the API.
-
-    Parameters:
-    - ontology_id (str): The ID of the ontology to fetch details for.
-
-    Returns:
-    - dict: A dictionary containing the required ontology details.
-    """
-    base_url = "https://www.ebi.ac.uk/ols4"
-    endpoint = f"/api/ontologies/{ontology_id}"
-    url = base_url + endpoint
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        ontology_details = response.json()
-        # Extract only required details
-        required_details = {
-            "title": ontology_details['config']['title'],
-            "description": ontology_details['config']['description'],
-            "number_of_terms": ontology_details['numberOfTerms'],
-            "status": ontology_details['status']
-        }
-        return required_details
-    elif response.status_code == 404:
-        return f"Ontology with ID '{ontology_id}' not found."
-    else:
-        return f"Error fetching details for ontology with ID '{ontology_id}'. Status code: {response.status_code}"
-    
+            if response.status_code == 200:
+                ontology_details = response.json()
+                required_details = {
+                    "title": ontology_details['config']['title'],
+                    "description": ontology_details['config']['description'],
+                    "number_of_terms": ontology_details['numberOfTerms'],
+                    "status": ontology_details['status']
+                }
+                return required_details
+            if response.status_code == 404:
+                return f"Ontology with ID '{ontology_id}' not found."
+            else:
+                return f"Error fetching details for ontology with ID '{ontology_id}'. Status code:{response.status_code}"
+        except requests.exceptions.ConnectionError:
+            return "Failed to connect to the API. Please check your internet connection or try again later."
 
 
-def hum_format(ontology_id):
-    """
-    Format ontology details in human-readable format.
+    def fetch_ontology_details_hum(self, ontology_id):
+        """
+        Fetches ontology details in human-readable format.
 
-    Parameters:
-    - ontology_id (str): The ID of the ontology to fetch details for.
+        Parameters:
+        - ontology_id (str): The ID of the ontology to fetch details for.
 
-    Returns:
-    - str: Formatted ontology details in human-readable format.
-    """
-    details = fetch_ontology_details(ontology_id)
-    if details:
-        return (
-            f"Ontology Title: {details['title']}\n"
-            f"Ontology Description: {details['description']}\n"
-            f"Number of Terms: {details['number_of_terms']}\n"
-            f"Current Status: {details['status']}"
-        )
-    
-
-    
-def display_menu():
-    """
-    Display the menu options.
-    """
-    print("Select output format:")
-    print("1. Human-readable")
-    print("2. Machine-readable")
-    print("3. Exit")
-
-def done():
-    """
-    Exit the program.
-    """
-    system('cls')  # clears stdout
-    print("Goodbye")
-    sys.exit()
+        Returns:
+        - str: A human-readable string containing ontology details,
+          or a message indicating no details found.
+        """
+        details = self.fetch_ontology_details(ontology_id)
+        if details:
+            return (
+                f"Ontology Title: {details['title']}\n"
+                f"Ontology Description: {details['description']}\n"
+                f"Number of Terms: {details['number_of_terms']}\n"
+                f"Current Status: {details['status']}"
+            )
+        return "No details found for the provided ontology ID."
 
 
 def main():
     """
-    Main function to interact with the user and handle selections.
+    Main function to interact with the user, handle inputs, and display ontology details.
     """
-    ontology_id = input("Please enter ontology id: ")
-    while True:
-        display_menu()
+    # Check if the correct number of command-line arguments are provided
+    if len(sys.argv) != 3:
+        print("Usage: python main.py <ontology_id> <output_format>")
+        sys.exit(1)
 
-        selection = int(input("Please select the format (1-3): "))
+    ontology_id = sys.argv[1]
+    output_format = sys.argv[2]
 
-        if selection == 1:
-            print("Fetching ontology details (human-readable)...")
-            # Fetch and format ontology details in human-readable format
-            formatted_details = hum_format(ontology_id)
-            print(formatted_details)
-            input("Press Enter to Continue\n")
-            system('cls')  # clears stdout
-        elif selection == 2:
-            print("Fetching ontology details (machine-readable)...")
-            # Fetch ontology details in machine-readable format
-            ontology_details = fetch_ontology_details(ontology_id)
-            print(ontology_details)
-            input("Press Enter to Continue\n")
-            system('cls')  # clears stdout
-        elif selection == 3:
-            system('cls')  # clears stdout
-            print("Goodbye")
-            sys.exit()
-        else:
-            print("Invalid selection. Please enter a number between 1 and 3.")
+    hum = api.fetch_ontology_details_hum(ontology_id)
+    machine = api.fetch_ontology_details(ontology_id)
+    # Based on the output format selected, print the ontology details
+    if output_format == "hum":
+        print(hum)  # Print in human-readable format
+    elif output_format == "machine":
+        print(machine)  # Print in machine-readable format
+    else:
+        print("Invalid output format. Please choose 'machine' or 'hum'.")
+        sys.exit(1)
 
 
+
+if __name__ == "__main__":
+    # create an instance of ontology API
+    api = OntologyAPI()
+    main()
